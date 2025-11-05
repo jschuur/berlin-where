@@ -1,0 +1,17 @@
+node_modules
+
+# misc
+.DS_Store
+
+# logs
+*.log
+
+# sst
+.sst
+
+dist
+dev-dist
+
+# env
+.env*
+!env.example
