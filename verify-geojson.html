@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Berlin GeoJSON Verification Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .legend h3 {
+            margin-top: 0;
+            font-size: 16px;
+        }
+        .legend-item {
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            margin-right: 10px;
+            border: 2px solid #333;
+            display: inline-block;
+        }
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: absolute;
+            top: 20px;
+            left: 60px;
+            z-index: 1000;
+        }
+        .controls label {
+            display: block;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+        .controls input {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div class="controls">
+        <h3 style="margin-top: 0; font-size: 16px;">Layers</h3>
+        <label><input type="checkbox" id="showWestBerlin" checked> West Berlin Polygon</label>
+        <label><input type="checkbox" id="showDistricts" checked> District Polygons</label>
+        <label><input type="checkbox" id="showBounds" checked> Berlin Bounds</label>
+        <label><input type="checkbox" id="showLabels" checked> District Labels</label>
+    </div>
+
+    <div class="legend">
+        <h3>Berlin GeoJSON Verification</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: rgba(255, 100, 100, 0.3);"></div>
+            <span>West Berlin (Historical)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: rgba(100, 150, 255, 0.3);"></div>
+            <span>East Berlin (Inferred)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: transparent; border-color: #4a90e2;"></div>
+            <span>District Boundaries</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: transparent; border-color: #ff0000; border-style: dashed;"></div>
+            <span>Berlin Bounds Box</span>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-top: 15px;">
+            Click on polygons to see details. Use controls to toggle layers.
+        </p>
+    </div>
+
+    <script>
+        // Initialize map centered on Berlin
+        const map = L.map('map').setView([52.52, 13.405], 11);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Berlin bounds box
+        const BERLIN_BOUNDS = {
+            minLat: 52.3,
+            maxLat: 52.7,
+            minLon: 13.0,
+            maxLon: 13.8
+        };
+
+        // Convert polygon coordinates from [lat, lon] to [lon, lat] for Leaflet
+        function convertCoordinates(coords) {
+            return coords.map(coord => [coord[0], coord[1]]);
+        }
+
+        // West Berlin polygon data
+        const WEST_BERLIN_POLYGON = [
+            [52.57, 13.195], [52.568, 13.201], [52.566, 13.207], [52.565, 13.21],
+            [52.563, 13.215], [52.561, 13.22], [52.56, 13.225], [52.558, 13.245],
+            [52.556, 13.265], [52.555, 13.28], [52.554, 13.292], [52.552, 13.304],
+            [52.55, 13.32], [52.548, 13.332], [52.546, 13.341], [52.545, 13.35],
+            [52.546, 13.358], [52.547, 13.364], [52.548, 13.37], [52.549, 13.375],
+            [52.55, 13.385], [52.548, 13.39], [52.547, 13.395], [52.545, 13.4],
+            [52.542, 13.403], [52.54, 13.406], [52.538, 13.41], [52.536, 13.412],
+            [52.534, 13.413], [52.532, 13.415], [52.53, 13.416], [52.528, 13.418],
+            [52.526, 13.419], [52.524, 13.4195], [52.522, 13.42], [52.52, 13.4205],
+            [52.518, 13.421], [52.515, 13.422], [52.512, 13.423], [52.51, 13.424],
+            [52.508, 13.425], [52.505, 13.427], [52.502, 13.428], [52.5, 13.43],
+            [52.495, 13.432], [52.49, 13.435], [52.485, 13.437], [52.48, 13.44],
+            [52.475, 13.439], [52.47, 13.438], [52.465, 13.434], [52.46, 13.43],
+            [52.458, 13.42], [52.457, 13.415], [52.455, 13.41], [52.453, 13.398],
+            [52.451, 13.389], [52.45, 13.38], [52.448, 13.372], [52.446, 13.366],
+            [52.445, 13.36], [52.443, 13.352], [52.442, 13.34], [52.441, 13.32],
+            [52.44, 13.3], [52.442, 13.285], [52.443, 13.278], [52.445, 13.27],
+            [52.448, 13.255], [52.451, 13.247], [52.455, 13.24], [52.458, 13.233],
+            [52.462, 13.227], [52.466, 13.224], [52.47, 13.22], [52.476, 13.216],
+            [52.482, 13.213], [52.49, 13.21], [52.498, 13.208], [52.504, 13.206],
+            [52.51, 13.205], [52.518, 13.203], [52.524, 13.201], [52.53, 13.2],
+            [52.536, 13.198], [52.542, 13.197], [52.55, 13.195], [52.558, 13.194],
+            [52.564, 13.194], [52.57, 13.195]
+        ];
+
+        // Districts data
+        const BERLIN_DISTRICTS = [
+            {
+                name: 'Mitte',
+                polygon: [[52.545, 13.35], [52.546, 13.357], [52.547, 13.364], [52.548, 13.37], [52.549, 13.375], [52.55, 13.385], [52.549, 13.392], [52.547, 13.396], [52.545, 13.4], [52.542, 13.403], [52.54, 13.406], [52.538, 13.41], [52.536, 13.412], [52.534, 13.413], [52.532, 13.415], [52.528, 13.414], [52.524, 13.412], [52.52, 13.41], [52.517, 13.402], [52.515, 13.395], [52.512, 13.387], [52.51, 13.38], [52.512, 13.37], [52.515, 13.36], [52.518, 13.353], [52.522, 13.349], [52.525, 13.345], [52.528, 13.343], [52.532, 13.341], [52.535, 13.34], [52.54, 13.345], [52.545, 13.35]]
+            },
+            {
+                name: 'Friedrichshain-Kreuzberg',
+                polygon: [[52.52, 13.41], [52.517, 13.415], [52.515, 13.422], [52.512, 13.423], [52.51, 13.424], [52.508, 13.425], [52.505, 13.427], [52.502, 13.428], [52.5, 13.43], [52.495, 13.432], [52.49, 13.435], [52.487, 13.428], [52.485, 13.42], [52.482, 13.412], [52.48, 13.405], [52.482, 13.398], [52.485, 13.394], [52.49, 13.39], [52.495, 13.392], [52.5, 13.395], [52.505, 13.387], [52.51, 13.38], [52.512, 13.387], [52.515, 13.395], [52.518, 13.402], [52.52, 13.41]]
+            },
+            {
+                name: 'Pankow',
+                polygon: [[52.57, 13.35], [52.575, 13.358], [52.58, 13.365], [52.59, 13.37], [52.6, 13.375], [52.61, 13.377], [52.62, 13.38], [52.625, 13.39], [52.628, 13.402], [52.63, 13.42], [52.628, 13.435], [52.625, 13.443], [52.62, 13.45], [52.61, 13.455], [52.6, 13.456], [52.58, 13.46], [52.57, 13.453], [52.56, 13.447], [52.55, 13.44], [52.547, 13.42], [52.545, 13.4], [52.547, 13.392], [52.55, 13.385], [52.552, 13.377], [52.555, 13.37], [52.562, 13.36], [52.57, 13.35]]
+            },
+            {
+                name: 'Charlottenburg-Wilmersdorf',
+                polygon: [[52.55, 13.2], [52.542, 13.2], [52.535, 13.2], [52.53, 13.2], [52.524, 13.201], [52.518, 13.203], [52.51, 13.205], [52.505, 13.206], [52.498, 13.208], [52.49, 13.21], [52.487, 13.223], [52.485, 13.24], [52.482, 13.255], [52.48, 13.27], [52.482, 13.285], [52.485, 13.292], [52.49, 13.3], [52.495, 13.31], [52.5, 13.32], [52.507, 13.325], [52.515, 13.33], [52.52, 13.337], [52.525, 13.345], [52.53, 13.342], [52.535, 13.34], [52.54, 13.332], [52.542, 13.326], [52.545, 13.32], [52.547, 13.3], [52.55, 13.28], [52.55, 13.26], [52.55, 13.24], [52.55, 13.22], [52.55, 13.2]]
+            },
+            {
+                name: 'Spandau',
+                polygon: [[52.57, 13.195], [52.567, 13.202], [52.565, 13.21], [52.562, 13.217], [52.56, 13.225], [52.558, 13.245], [52.556, 13.262], [52.555, 13.28], [52.552, 13.28], [52.55, 13.28], [52.55, 13.26], [52.55, 13.24], [52.55, 13.22], [52.55, 13.2], [52.55, 13.197], [52.55, 13.195], [52.555, 13.182], [52.56, 13.17], [52.565, 13.165], [52.57, 13.16], [52.58, 13.152], [52.59, 13.15], [52.595, 13.16], [52.6, 13.17], [52.595, 13.18], [52.59, 13.19], [52.58, 13.192], [52.575, 13.194], [52.57, 13.195]]
+            },
+            {
+                name: 'Steglitz-Zehlendorf',
+                polygon: [[52.47, 13.22], [52.463, 13.223], [52.458, 13.227], [52.455, 13.24], [52.45, 13.255], [52.447, 13.262], [52.445, 13.27], [52.442, 13.285], [52.44, 13.3], [52.435, 13.305], [52.43, 13.31], [52.425, 13.305], [52.42, 13.3], [52.417, 13.285], [52.415, 13.27], [52.418, 13.255], [52.42, 13.24], [52.425, 13.23], [52.43, 13.22], [52.437, 13.21], [52.445, 13.2], [52.452, 13.2], [52.46, 13.2], [52.465, 13.21], [52.47, 13.22]]
+            },
+            {
+                name: 'Tempelhof-Schöneberg',
+                polygon: [[52.49, 13.3], [52.485, 13.285], [52.48, 13.27], [52.477, 13.27], [52.465, 13.28], [52.455, 13.29], [52.45, 13.305], [52.447, 13.312], [52.445, 13.32], [52.443, 13.33], [52.442, 13.34], [52.443, 13.35], [52.445, 13.36], [52.45, 13.367], [52.455, 13.375], [52.462, 13.38], [52.47, 13.385], [52.477, 13.375], [52.482, 13.372], [52.485, 13.37], [52.487, 13.355], [52.49, 13.34], [52.49, 13.32], [52.49, 13.3]]
+            },
+            {
+                name: 'Neukölln',
+                polygon: [[52.49, 13.39], [52.485, 13.397], [52.48, 13.405], [52.475, 13.42], [52.47, 13.438], [52.465, 13.444], [52.46, 13.45], [52.455, 13.455], [52.45, 13.46], [52.447, 13.457], [52.44, 13.455], [52.437, 13.447], [52.435, 13.44], [52.435, 13.43], [52.435, 13.42], [52.437, 13.405], [52.44, 13.39], [52.447, 13.382], [52.455, 13.375], [52.462, 13.38], [52.47, 13.385], [52.477, 13.382], [52.482, 13.38], [52.485, 13.37], [52.487, 13.385], [52.49, 13.39]]
+            },
+            {
+                name: 'Treptow-Köpenick',
+                polygon: [[52.49, 13.435], [52.485, 13.437], [52.48, 13.44], [52.475, 13.447], [52.47, 13.455], [52.465, 13.462], [52.46, 13.47], [52.457, 13.482], [52.455, 13.5], [52.452, 13.52], [52.448, 13.535], [52.44, 13.55], [52.432, 13.57], [52.42, 13.6], [52.41, 13.59], [52.4, 13.58], [52.395, 13.56], [52.39, 13.54], [52.395, 13.51], [52.4, 13.48], [52.41, 13.46], [52.42, 13.44], [52.43, 13.43], [52.44, 13.42], [52.45, 13.425], [52.46, 13.43], [52.475, 13.432], [52.49, 13.435]]
+            },
+            {
+                name: 'Marzahn-Hellersdorf',
+                polygon: [[52.54, 13.5], [52.545, 13.51], [52.548, 13.52], [52.55, 13.53], [52.555, 13.535], [52.56, 13.54], [52.565, 13.55], [52.568, 13.57], [52.57, 13.6], [52.568, 13.625], [52.565, 13.64], [52.56, 13.65], [52.55, 13.645], [52.54, 13.64], [52.532, 13.63], [52.52, 13.62], [52.51, 13.6], [52.505, 13.59], [52.5, 13.58], [52.505, 13.56], [52.51, 13.54], [52.515, 13.525], [52.52, 13.51], [52.53, 13.505], [52.54, 13.5]]
+            },
+            {
+                name: 'Lichtenberg',
+                polygon: [[52.54, 13.44], [52.545, 13.448], [52.547, 13.453], [52.55, 13.46], [52.548, 13.475], [52.547, 13.485], [52.545, 13.495], [52.54, 13.5], [52.535, 13.505], [52.53, 13.508], [52.525, 13.509], [52.52, 13.51], [52.515, 13.515], [52.51, 13.517], [52.505, 13.518], [52.5, 13.52], [52.492, 13.515], [52.488, 13.508], [52.485, 13.5], [52.482, 13.485], [52.48, 13.47], [52.477, 13.47], [52.47, 13.47], [52.475, 13.455], [52.48, 13.44], [52.49, 13.437], [52.495, 13.434], [52.5, 13.43], [52.51, 13.432], [52.52, 13.435], [52.53, 13.437], [52.54, 13.44]]
+            },
+            {
+                name: 'Reinickendorf',
+                polygon: [[52.555, 13.28], [52.558, 13.295], [52.562, 13.307], [52.565, 13.313], [52.57, 13.32], [52.58, 13.332], [52.59, 13.34], [52.595, 13.345], [52.6, 13.35], [52.608, 13.357], [52.615, 13.363], [52.62, 13.37], [52.625, 13.38], [52.628, 13.385], [52.63, 13.39], [52.628, 13.395], [52.625, 13.398], [52.62, 13.4], [52.612, 13.395], [52.605, 13.392], [52.6, 13.39], [52.59, 13.39], [52.582, 13.385], [52.575, 13.38], [52.57, 13.37], [52.565, 13.36], [52.56, 13.355], [52.557, 13.352], [52.555, 13.35], [52.552, 13.34], [52.551, 13.33], [52.55, 13.32], [52.552, 13.3], [52.555, 13.28]]
+            }
+        ];
+
+        // Store layer references
+        let westBerlinLayer, districtLayers = [], boundsLayer, districtLabels = [];
+
+        // Create West Berlin polygon
+        westBerlinLayer = L.polygon(convertCoordinates(WEST_BERLIN_POLYGON), {
+            color: '#ff6464',
+            fillColor: '#ff6464',
+            fillOpacity: 0.3,
+            weight: 3
+        }).addTo(map);
+
+        westBerlinLayer.bindPopup('<strong>West Berlin</strong><br>Historical boundary (1961-1989)');
+
+        // Create district polygons
+        BERLIN_DISTRICTS.forEach(district => {
+            const layer = L.polygon(convertCoordinates(district.polygon), {
+                color: '#4a90e2',
+                fillColor: '#6495ED',
+                fillOpacity: 0.15,
+                weight: 2
+            }).addTo(map);
+
+            layer.bindPopup(`<strong>${district.name}</strong><br>District (Bezirk)`);
+            districtLayers.push(layer);
+
+            // Add district label
+            const bounds = layer.getBounds();
+            const center = bounds.getCenter();
+            const label = L.marker(center, {
+                icon: L.divIcon({
+                    className: 'district-label',
+                    html: `<div style="background: rgba(255,255,255,0.8); padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; white-space: nowrap;">${district.name}</div>`,
+                    iconSize: [100, 20]
+                })
+            }).addTo(map);
+            districtLabels.push(label);
+        });
+
+        // Create Berlin bounds box
+        const boundsRect = [
+            [BERLIN_BOUNDS.minLat, BERLIN_BOUNDS.minLon],
+            [BERLIN_BOUNDS.maxLat, BERLIN_BOUNDS.maxLon]
+        ];
+        boundsLayer = L.rectangle(boundsRect, {
+            color: '#ff0000',
+            fillOpacity: 0,
+            weight: 2,
+            dashArray: '10, 10'
+        }).addTo(map);
+
+        boundsLayer.bindPopup('<strong>Berlin Bounds Box</strong><br>Used for initial location filtering');
+
+        // Layer controls
+        document.getElementById('showWestBerlin').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                map.addLayer(westBerlinLayer);
+            } else {
+                map.removeLayer(westBerlinLayer);
+            }
+        });
+
+        document.getElementById('showDistricts').addEventListener('change', (e) => {
+            districtLayers.forEach(layer => {
+                if (e.target.checked) {
+                    map.addLayer(layer);
+                } else {
+                    map.removeLayer(layer);
+                }
+            });
+        });
+
+        document.getElementById('showBounds').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                map.addLayer(boundsLayer);
+            } else {
+                map.removeLayer(boundsLayer);
+            }
+        });
+
+        document.getElementById('showLabels').addEventListener('change', (e) => {
+            districtLabels.forEach(label => {
+                if (e.target.checked) {
+                    map.addLayer(label);
+                } else {
+                    map.removeLayer(label);
+                }
+            });
+        });
+
+        // Fit map to West Berlin bounds
+        map.fitBounds(westBerlinLayer.getBounds());
+    </script>
+</body>
+</html>
